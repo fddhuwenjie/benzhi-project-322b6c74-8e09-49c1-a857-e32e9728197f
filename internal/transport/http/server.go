@@ -298,6 +298,7 @@ func (s *Server) HandleCaseRoute(w http.ResponseWriter, r *http.Request) {
 		writeDomain(w, err)
 		return
 	}
+	s.caseCache.Delete(id)
 	write(w, http.StatusOK, c)
 }
 
@@ -433,6 +434,7 @@ func (s *Server) handleExtensionMutation(w http.ResponseWriter, r *http.Request,
 		writeDomain(w, err)
 		return
 	}
+	s.caseCache.Delete(id)
 	write(w, http.StatusOK, c)
 }
 
