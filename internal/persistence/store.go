@@ -151,3 +151,24 @@ func (s *Store) flushRequestsLocked() error {
 	}
 	return os.Rename(tmp, filepath.Join(s.dir, "requests.json"))
 }
+
+// RevertMutation undoes a successful SaveMutation by removing the case (or
+// restoring the previous version) and deleting the idempotency record. It is
+// used when audit append fails after the store mutation has been persisted,
+// ensuring no orphaned state is left in memory or on disk.
+func (s *Store) RevertMutation(caseID, requestID string, restore *domain.AcclimationCase) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if restore != nil {
+		s.cases[caseID] = restore.Clone()
+	} else {
+		delete(s.cases, caseID)
+	}
+	if requestID != "" {
+		delete(s.requests, requestID)
+	}
+	_ = s.flushLocked()
+	if requestID != "" {
+		_ = s.flushRequestsLocked()
+	}
+}

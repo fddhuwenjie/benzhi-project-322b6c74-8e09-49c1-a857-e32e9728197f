@@ -113,6 +113,7 @@ func (s *Service) mutateFPWithAudit(id, requestID, fp string, expected int, even
 	if expected > 0 && c.Revision != expected {
 		return c, domain.Conflict("revision mismatch")
 	}
+	original := c.Clone()
 	if err := fn(&c); err != nil {
 		return c, err
 	}
@@ -130,6 +131,7 @@ func (s *Service) mutateFPWithAudit(id, requestID, fp string, expected int, even
 			data = eventData(c)
 		}
 		if err := s.Audit.Append(c.CaseID, eventType, c.Revision, data); err != nil {
+			s.Store.RevertMutation(c.CaseID, requestID, &original)
 			return c, err
 		}
 	}
@@ -191,6 +193,7 @@ func (s *Service) Create(command CreateCommand) (domain.AcclimationCase, error) 
 	}
 	if s.Audit != nil {
 		if err = s.Audit.Append(c.CaseID, "CaseCreated", c.Revision, StateOf(c)); err != nil {
+			s.Store.RevertMutation(c.CaseID, requestID, nil)
 			return c, err
 		}
 	}
