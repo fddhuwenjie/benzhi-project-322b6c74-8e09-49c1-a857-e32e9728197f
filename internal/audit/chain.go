@@ -20,10 +20,8 @@ type Event struct {
 	Digest     string          `json:"digest"`
 }
 type Chain struct {
-	path       string
-	mu         sync.Mutex
-	verifyOnce sync.Once
-	verifyErr  error
+	path string
+	mu   sync.Mutex
 }
 
 func Open(dir string) (*Chain, error) {
@@ -78,15 +76,12 @@ func splitLines(b []byte) [][]byte {
 	return out
 }
 func (c *Chain) Verify() error {
-	c.verifyOnce.Do(func() {
-		c.verifyErr = c.verifyCurrent()
-	})
-	return c.verifyErr
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.verifyCurrent()
 }
 
 func (c *Chain) verifyCurrent() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	b, e := os.ReadFile(c.path)
 	if os.IsNotExist(e) {
 		return nil
