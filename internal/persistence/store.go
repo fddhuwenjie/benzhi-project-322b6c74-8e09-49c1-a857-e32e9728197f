@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"encoding/json"
+	"fmt"
 	"icecoreacclimationgate/internal/domain"
 	"os"
 	"path/filepath"
@@ -44,23 +45,34 @@ func (s *Store) load() error {
 	}
 	rb, e := os.ReadFile(filepath.Join(s.dir, "requests.json"))
 	if e == nil {
-		s.requests = decodeRequestRecords(rb)
+		records, err := decodeRequestRecords(rb)
+		if err != nil {
+			return err
+		}
+		s.requests = records
 	}
 	return nil
 }
 
-func decodeRequestRecords(data []byte) map[string]RequestRecord {
+func decodeRequestRecords(data []byte) (map[string]RequestRecord, error) {
 	records := map[string]RequestRecord{}
 	if err := json.Unmarshal(data, &records); err != nil {
-		return map[string]RequestRecord{}
+		return nil, fmt.Errorf("requests.json 不是合法 JSON: %w", err)
 	}
 	for key, record := range records {
 		var response domain.AcclimationCase
-		if record.RequestID != key || record.Fingerprint == "" || json.Unmarshal(record.Body, &response) != nil || response.CaseID == "" {
-			delete(records, key)
+		switch {
+		case record.RequestID == "" || record.RequestID != key:
+			return nil, fmt.Errorf("requests.json 条目 %q 的 request_id 缺失或与键不匹配", key)
+		case record.Fingerprint == "":
+			return nil, fmt.Errorf("requests.json 条目 %q 的 fingerprint 缺失", key)
+		case json.Unmarshal(record.Body, &response) != nil:
+			return nil, fmt.Errorf("requests.json 条目 %q 的 body 无法解析为响应体", key)
+		case response.CaseID == "":
+			return nil, fmt.Errorf("requests.json 条目 %q 的响应体缺失 case_id", key)
 		}
 	}
-	return records
+	return records, nil
 }
 func (s *Store) Get(id string) (domain.AcclimationCase, bool) {
 	s.mu.RLock()
