@@ -36,21 +36,9 @@ func (s *Service) PreviewProtocol(id string, plannedStart time.Time, protocol do
 	if err != nil {
 		return domain.ProtocolPreview{}, err
 	}
-	cacheKey := fingerprint(protocol)
-	s.previewMu.Lock()
-	cached, ok := s.previewCache[cacheKey]
-	s.previewMu.Unlock()
-	if ok {
-		return cached, nil
-	}
-	preview, err := c.PreviewProtocol(protocol, plannedStart)
-	if err != nil {
-		return domain.ProtocolPreview{}, err
-	}
-	s.previewMu.Lock()
-	s.previewCache[cacheKey] = preview
-	s.previewMu.Unlock()
-	return preview, nil
+	// 试算结果取决于批次的保存温度与计划起点，不能仅按方案内容缓存；
+	// 每次请求都基于当前批次和 planned_start_at 重新计算，避免跨批次结果污染。
+	return c.PreviewProtocol(protocol, plannedStart)
 }
 
 func (s *Service) ReadingsBatch(id, requestID string, expected int, readings []domain.EnvironmentalReading) (domain.AcclimationCase, error) {

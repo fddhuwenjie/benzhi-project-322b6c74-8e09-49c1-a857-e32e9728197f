@@ -21,8 +21,6 @@ type Service struct {
 	Audit            *audit.Chain
 	locks            sync.Map
 	createMu         sync.Mutex
-	previewMu        sync.Mutex
-	previewCache     map[string]domain.ProtocolPreview
 	writeEnabled     bool
 	integrityReasons []string
 }
@@ -31,7 +29,6 @@ func New(store *persistence.Store, chain *audit.Chain) *Service {
 	service := &Service{
 		Store:        store,
 		Audit:        chain,
-		previewCache: map[string]domain.ProtocolPreview{},
 		writeEnabled: true,
 	}
 	service.checkRecoveredIntegrity()
